@@ -374,10 +374,12 @@ create_mysql_preview_user() {
     
     MYSQL_PREVIEW_PASSWORD=$(get_mysql_password)
     
-    log "Creating preview database user..."
+    log "Creating preview database user with database creation permissions..."
     mysql -u root <<EOF 2>&1 | tee -a "$LOG_FILE"
 CREATE USER IF NOT EXISTS '${MYSQL_PREVIEW_USER}'@'localhost' IDENTIFIED BY '${MYSQL_PREVIEW_PASSWORD}';
 GRANT ALL PRIVILEGES ON \`preview\\_%\`.* TO '${MYSQL_PREVIEW_USER}'@'localhost';
+GRANT CREATE, DROP ON \`preview\\_%\`.* TO '${MYSQL_PREVIEW_USER}'@'localhost';
+GRANT CREATE ON *.* TO '${MYSQL_PREVIEW_USER}'@'localhost';
 FLUSH PRIVILEGES;
 EOF
     
@@ -388,7 +390,17 @@ EOF
         log_error "Failed to create or test MySQL preview user"
         exit 1
     fi
-    
+
+    # Create MySQL config for preview user (for passwordless access)
+    cat > "/home/$PREVIEW_USER/.my.cnf" <<EOF
+[client]
+user=${MYSQL_PREVIEW_USER}
+password=${MYSQL_PREVIEW_PASSWORD}
+EOF
+    chown "$PREVIEW_USER:$PREVIEW_USER" "/home/$PREVIEW_USER/.my.cnf"
+    chmod 600 "/home/$PREVIEW_USER/.my.cnf"
+    log "MySQL config created for $PREVIEW_USER"
+
     save_checkpoint "mysql_user_created"
 }
 
@@ -418,21 +430,129 @@ create_preview_user() {
         chown "$PREVIEW_USER:$PREVIEW_USER" "/home/$PREVIEW_USER/.ssh/authorized_keys"
     fi
     
-    # Add to sudoers for nginx management
+    # Add to sudoers for comprehensive system management
     if [[ ! -f "/etc/sudoers.d/$PREVIEW_USER" ]]; then
         cat > "/etc/sudoers.d/$PREVIEW_USER" <<EOF
-# Allow $PREVIEW_USER to manage nginx and preview-specific tasks
+# Comprehensive permissions for $PREVIEW_USER to manage preview server
+# This allows the user to run all management scripts without root
+
+# Nginx management
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/sbin/nginx -s *
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl reload nginx
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart nginx
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl start nginx
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl stop nginx
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl status nginx
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl is-active nginx
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl is-enabled nginx
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl enable nginx
+
+# PHP-FPM management
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl reload php*-fpm
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart php*-fpm
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl start php*-fpm
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl stop php*-fpm
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl status php*-fpm
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl is-active php*-fpm
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl is-enabled php*-fpm
+
+# MySQL management
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl reload mysql
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart mysql
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl start mysql
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl stop mysql
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl status mysql
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl is-active mysql
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl is-enabled mysql
+
+# Other service management (fail2ban, rsyslog, ufw, etc.)
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl * fail2ban
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl * rsyslog
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl * unattended-upgrades
+
+# SSL/Certbot management
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/certbot *
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/local/bin/preview-ssl.sh *
+
+# File operations for nginx configs
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/ln -sf /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/rm -f /etc/nginx/sites-enabled/pr-*
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/rm -f /etc/nginx/sites-available/pr-*
-$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/certbot *
-$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/local/bin/preview-ssl.sh *
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/cp * /etc/nginx/sites-available/pr-*
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/nginx/sites-available/pr-*
+
+# File ownership and permissions for preview directories
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/chown -R $PREVIEW_USER\:www-data /var/www/previews/*
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/chown $PREVIEW_USER\:www-data /var/www/previews/*
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/chmod -R * /var/www/previews/*
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/chmod * /var/www/previews/*
+
+# Package management
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/apt update
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/apt upgrade *
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/apt install *
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/apt remove *
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/apt purge *
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/apt autoremove *
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/apt autoclean
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/apt clean
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/apt list *
+
+# Log management
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/sbin/logrotate *
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/journalctl *
+
+# Backup operations
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/mysqldump *
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/tar *
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/mkdir -p /var/backups/*
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/cp * /var/backups/*
+
+# Firewall management
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/sbin/ufw *
+
+# Cron management
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/crontab *
+
+# Composer updates
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/local/bin/composer self-update
+
+# Helper scripts
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/local/bin/preview-*
+
+# File reading for diagnostics (read-only access to configs)
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/cat /etc/ssh/sshd_config*
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/cat /etc/nginx/*
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/cat /etc/php/*/*
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/cat /etc/mysql/*
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/cat /root/.preview_*
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/cat /root/.certbot_email
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/cat /var/log/*
+
+# System information commands
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/dpkg *
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/sbin/sshd -t
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/sed -i * /etc/php/*/*
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/sed -i * /etc/nginx/*
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/sed -i * /etc/mysql/*
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/mysql/mysql.conf.d/*
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/ssh/sshd_config.d/*
+
+# Find and file operations for cleanup
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/find /var/log/* -delete
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/find /tmp/* -delete
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/rm -rf /var/www/previews/pr-*
+
+# Database backup directory access
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/chown $PREVIEW_USER\:$PREVIEW_USER /var/backups/*
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/chmod * /var/backups/*
 EOF
         chmod 440 "/etc/sudoers.d/$PREVIEW_USER"
     fi
+
+    # Add user to adm group for log access
+    usermod -aG adm "$PREVIEW_USER" 2>/dev/null || true
     
     log "Preview user created: $PREVIEW_USER"
     log_info "SSH public key should be added to: /home/$PREVIEW_USER/.ssh/authorized_keys"
@@ -452,10 +572,18 @@ create_directories() {
     mkdir -p "$PREVIEW_DIR"
     chown "$PREVIEW_USER:www-data" "$PREVIEW_DIR"
     chmod 755 "$PREVIEW_DIR"
-    
+
     # Create scripts directory
     mkdir -p /usr/local/bin
-    
+
+    # Create backup directory with proper permissions
+    mkdir -p /var/backups/preview-server
+    mkdir -p /var/backups/logs
+    chown -R "$PREVIEW_USER:$PREVIEW_USER" /var/backups/preview-server
+    chown -R "$PREVIEW_USER:$PREVIEW_USER" /var/backups/logs
+    chmod 755 /var/backups/preview-server
+    chmod 755 /var/backups/logs
+
     log "Directory structure created"
     save_checkpoint "directories_created"
 }

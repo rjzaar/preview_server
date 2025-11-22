@@ -76,8 +76,9 @@ log_section() {
 }
 
 check_root() {
-    if [[ $EUID -ne 0 ]]; then
-        echo "Error: This script must be run as root"
+    # Allow both root and github-actions user
+    if [[ $EUID -ne 0 ]] && [[ "$USER" != "github-actions" ]]; then
+        echo "Error: This script must be run as root or github-actions user"
         exit 1
     fi
 }
@@ -157,19 +158,19 @@ check_firewall() {
         else
             log_critical "UFW firewall is not active"
             if [[ "$FIX_MODE" == "true" ]]; then
-                ufw --force enable
+                sudo ufw --force enable
                 log_info "Fixed: Enabled UFW firewall"
             fi
         fi
     else
         log_critical "UFW firewall is not installed"
         if [[ "$FIX_MODE" == "true" ]]; then
-            apt install -y ufw
-            ufw default deny incoming
-            ufw default allow outgoing
-            ufw allow ssh
-            ufw allow 'Nginx Full'
-            ufw --force enable
+            sudo apt install -y ufw
+            sudo ufw default deny incoming
+            sudo ufw default allow outgoing
+            sudo ufw allow ssh
+            sudo ufw allow 'Nginx Full'
+            sudo ufw --force enable
             log_info "Fixed: Installed and configured UFW"
         fi
     fi
@@ -189,7 +190,7 @@ check_automatic_updates() {
     else
         log_fail "Automatic security updates are not configured"
         if [[ "$FIX_MODE" == "true" ]]; then
-            apt install -y unattended-upgrades
+            sudo apt install -y unattended-upgrades
             dpkg-reconfigure -plow unattended-upgrades
             log_info "Fixed: Configured automatic updates"
         fi
@@ -209,17 +210,17 @@ check_fail2ban() {
         else
             log_fail "Fail2ban is installed but not running"
             if [[ "$FIX_MODE" == "true" ]]; then
-                systemctl enable fail2ban
-                systemctl start fail2ban
+                sudo systemctl enable fail2ban
+                sudo systemctl start fail2ban
                 log_info "Fixed: Started Fail2ban"
             fi
         fi
     else
         log_warning "Fail2ban is not installed (recommended for brute-force protection)"
         if [[ "$FIX_MODE" == "true" ]]; then
-            apt install -y fail2ban
-            systemctl enable fail2ban
-            systemctl start fail2ban
+            sudo apt install -y fail2ban
+            sudo systemctl enable fail2ban
+            sudo systemctl start fail2ban
             log_info "Fixed: Installed and started Fail2ban"
         fi
     fi
@@ -341,7 +342,7 @@ check_kernel_security() {
 check_outdated_packages() {
     log_section "Package Security Updates"
 
-    apt update -qq
+    sudo apt update -qq
 
     local upgradable=$(apt list --upgradable 2>/dev/null | grep -c "upgradable" || echo "0")
 

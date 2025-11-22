@@ -22,8 +22,9 @@ log() { echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $*"; }
 log_info() { echo -e "${BLUE}[INFO]${NC} $*"; }
 
 check_root() {
-    if [[ $EUID -ne 0 ]]; then
-        echo "Error: This script must be run as root"
+    # Allow both root and github-actions user
+    if [[ $EUID -ne 0 ]] && [[ "$USER" != "github-actions" ]]; then
+        echo "Error: This script must be run as root or github-actions user"
         exit 1
     fi
 }
@@ -54,9 +55,9 @@ LOG="/var/log/monitoring/system-$(date +%Y%m%d).log"
     echo "Memory: $(free -h | grep Mem | awk '{print "Used: "$3" / "$2}')"
     echo "Disk: $(df -h / | tail -1 | awk '{print "Used: "$3" / "$2" ("$5")"}')"
     echo "Services:"
-    systemctl is-active nginx && echo "  nginx: OK" || echo "  nginx: FAIL"
-    systemctl is-active mysql && echo "  mysql: OK" || echo "  mysql: FAIL"
-    systemctl is-active php8.3-fpm && echo "  php-fpm: OK" || echo "  php-fpm: FAIL"
+    sudo systemctl is-active nginx && echo "  nginx: OK" || echo "  nginx: FAIL"
+    sudo systemctl is-active mysql && echo "  mysql: OK" || echo "  mysql: FAIL"
+    sudo systemctl is-active php8.3-fpm && echo "  php-fpm: OK" || echo "  php-fpm: FAIL"
     echo
 } >> "$LOG"
 EOF
@@ -73,7 +74,7 @@ EOF
 setup_email_alerts() {
     log "Setting up email alerts..."
 
-    apt install -y mailutils
+    sudo apt install -y mailutils
 
     # Create alert script
     cat > /usr/local/bin/alert-check.sh <<'EOF'

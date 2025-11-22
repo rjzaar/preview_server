@@ -57,7 +57,8 @@ log_info() {
 }
 
 check_root() {
-    if [[ $EUID -ne 0 ]]; then
+    # Allow both root and github-actions user
+    if [[ $EUID -ne 0 ]] && [[ "$USER" != "github-actions" ]]; then
         log_error "This script must be run as root (use sudo)"
         exit 1
     fi
@@ -75,7 +76,7 @@ backup_databases() {
     mkdir -p "$backup_temp/databases"
 
     # Backup all preview databases
-    mysql -u root -e "SHOW DATABASES LIKE 'preview_%';" -s -N | while read db; do
+    sudo mysql -u root -e "SHOW DATABASES LIKE 'preview_%';" -s -N | while read db; do
         log_info "  Backing up database: $db"
         mysqldump -u root --single-transaction --routines --triggers "$db" | gzip > "$backup_temp/databases/${db}.sql.gz"
     done
@@ -319,7 +320,7 @@ restore_backup() {
             if [[ -f "$db_file" ]]; then
                 local db_name=$(basename "$db_file" .sql.gz)
                 log_info "  Restoring database: $db_name"
-                mysql -u root -e "CREATE DATABASE IF NOT EXISTS \`$db_name\`;"
+                sudo mysql -u root -e "CREATE DATABASE IF NOT EXISTS \`$db_name\`;"
                 gunzip < "$db_file" | mysql -u root "$db_name"
             fi
         done
@@ -333,14 +334,14 @@ restore_backup() {
         if [[ -f "$restore_temp/config/nginx.tar.gz" ]]; then
             log_info "  Restoring Nginx config"
             tar -xzf "$restore_temp/config/nginx.tar.gz" -C /etc/
-            nginx -t && systemctl reload nginx
+            sudo nginx -t && systemctl reload nginx
         fi
 
         # PHP
         if [[ -f "$restore_temp/config/php.tar.gz" ]]; then
             log_info "  Restoring PHP config"
             tar -xzf "$restore_temp/config/php.tar.gz" -C /etc/
-            systemctl restart php8.3-fpm
+            sudo systemctl restart php8.3-fpm
         fi
 
         # MySQL

@@ -27,8 +27,9 @@ log_info() { echo -e "${BLUE}ℹ${NC} $*"; }
 log_warn() { echo -e "${YELLOW}⚠${NC} $*"; }
 
 check_root() {
-    if [[ $EUID -ne 0 ]]; then
-        echo "Error: This script must be run as root"
+    # Allow both root and github-actions user
+    if [[ $EUID -ne 0 ]] && [[ "$USER" != "github-actions" ]]; then
+        echo "Error: This script must be run as root or github-actions user"
         exit 1
     fi
 }
@@ -56,10 +57,10 @@ tune_php() {
     if [[ "$APPLY_CHANGES" == "true" ]]; then
         local pool_conf="/etc/php/${PHP_VERSION}/fpm/pool.d/www.conf"
 
-        sed -i "s/^pm.max_children = .*/pm.max_children = $pm_max_children/" "$pool_conf"
-        sed -i "s/^pm.start_servers = .*/pm.start_servers = $((pm_max_children / 4))/" "$pool_conf"
-        sed -i "s/^pm.min_spare_servers = .*/pm.min_spare_servers = $((pm_max_children / 8))/" "$pool_conf"
-        sed -i "s/^pm.max_spare_servers = .*/pm.max_spare_servers = $((pm_max_children / 2))/" "$pool_conf"
+        sudo sed -i "s/^pm.max_children = .*/pm.max_children = $pm_max_children/" "$pool_conf"
+        sudo sed -i "s/^pm.start_servers = .*/pm.start_servers = $((pm_max_children / 4))/" "$pool_conf"
+        sudo sed -i "s/^pm.min_spare_servers = .*/pm.min_spare_servers = $((pm_max_children / 8))/" "$pool_conf"
+        sudo sed -i "s/^pm.max_spare_servers = .*/pm.max_spare_servers = $((pm_max_children / 2))/" "$pool_conf"
 
         log "PHP-FPM pool settings updated"
     else
@@ -100,14 +101,14 @@ tune_nginx() {
     log_info "Recommended worker_processes: $cpu_cores"
 
     if [[ "$APPLY_CHANGES" == "true" ]]; then
-        sed -i "s/^worker_processes.*/worker_processes $cpu_cores;/" /etc/nginx/nginx.conf
+        sudo sed -i "s/^worker_processes.*/worker_processes $cpu_cores;/" /etc/nginx/nginx.conf
 
         # Add to http block if not exists
         if ! grep -q "worker_connections" /etc/nginx/nginx.conf; then
-            sed -i '/events {/a\    worker_connections 2048;' /etc/nginx/nginx.conf
+            sudo sed -i '/events {/a\    worker_connections 2048;' /etc/nginx/nginx.conf
         fi
 
-        nginx -t && systemctl reload nginx
+        sudo nginx -t && systemctl reload nginx
         log "Nginx performance settings updated"
     else
         log_warn "Run with --apply to apply changes"

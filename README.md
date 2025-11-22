@@ -17,7 +17,8 @@ This repository contains a complete suite of tools for managing a production-rea
 
 ### Features
 
-- **Automated Setup**: Complete server setup with one command
+- **Automated Setup**: Complete server setup with one command (root only)
+- **Non-Root Operation**: All management scripts run as `github-actions` user
 - **Preview Deployment**: Easy deployment of isolated preview environments
 - **Health Monitoring**: Comprehensive health checks and monitoring
 - **Security Auditing**: Automated security scans and hardening
@@ -25,6 +26,12 @@ This repository contains a complete suite of tools for managing a production-rea
 - **Performance Tuning**: Optimize PHP, MySQL, and Nginx
 - **Log Management**: Centralized log rotation and analysis
 - **SSL Automation**: Automatic Let's Encrypt SSL certificates
+
+### Permission Model
+
+- **Root required**: Only `setup_preview_server.sh` (one-time setup)
+- **GitHub Actions user**: All other scripts run as `github-actions` user with sudo permissions
+- **Secure**: Minimal sudo permissions, only for necessary operations
 
 ## Quick Start
 
@@ -59,8 +66,11 @@ sudo bash health-check.sh
 ### Deploy Your First Preview
 
 ```bash
-# Deploy preview for PR #123
-sudo -u github-actions bash deploy-preview-example.sh 123
+# SSH as github-actions user and deploy
+ssh github-actions@your-server
+bash deploy-preview-example.sh 123
+
+# Or from GitHub Actions (runs as github-actions automatically)
 ```
 
 ## Scripts Reference
@@ -548,40 +558,48 @@ preview_server/
 
 ## Common Tasks
 
+**Note**: All commands below run as `github-actions` user (not root). SSH to server as `github-actions` first, or run via GitHub Actions.
+
 ### Deploy a New Preview
 
 ```bash
-sudo -u github-actions bash deploy-preview-example.sh 123
+# As github-actions user
+bash deploy-preview-example.sh 123
 ```
 
 ### Check Server Health
 
 ```bash
-sudo bash health-check.sh
+# As github-actions user
+bash health-check.sh
 ```
 
 ### Run Weekly Maintenance
 
 ```bash
-sudo bash maintain.sh
+# As github-actions user
+bash maintain.sh
 ```
 
 ### Backup Server
 
 ```bash
-sudo bash backup-restore.sh backup
+# As github-actions user
+bash backup-restore.sh backup
 ```
 
 ### Security Audit
 
 ```bash
-sudo bash security-audit.sh
+# As github-actions user
+bash security-audit.sh
 ```
 
 ### Clean Up Old Previews
 
 ```bash
-sudo bash maintain.sh --clean
+# As github-actions user
+bash maintain.sh --clean
 ```
 
 ## Monitoring & Alerts

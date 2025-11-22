@@ -476,7 +476,7 @@ check_mysql_config() {
             
             # Test preview user can connect
             if [[ -f "/root/.preview_mysql_password" ]]; then
-                local preview_pass=$(cat /root/.preview_mysql_password)
+                local preview_pass=$(sudo cat /root/.preview_mysql_password)
                 if mysql -u "$MYSQL_PREVIEW_USER" -p"$preview_pass" -e "SELECT 1;" &>/dev/null; then
                     check_pass "Preview user can authenticate"
                 else
@@ -709,7 +709,7 @@ check_network() {
     
     # Check DNS
     if [[ -f /root/.preview_domain ]]; then
-        local domain=$(cat /root/.preview_domain)
+        local domain=$(sudo cat /root/.preview_domain)
         check_info ""
         check_info "Preview domain: $domain"
         

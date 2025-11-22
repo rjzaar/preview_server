@@ -27,15 +27,16 @@ log() { echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $*"; }
 log_info() { echo -e "${BLUE}[INFO]${NC} $*"; }
 
 check_root() {
-    if [[ $EUID -ne 0 ]]; then
-        echo "Error: This script must be run as root"
+    # Allow both root and github-actions user
+    if [[ $EUID -ne 0 ]] && [[ "$USER" != "github-actions" ]]; then
+        echo "Error: This script must be run as root or github-actions user"
         exit 1
     fi
 }
 
 rotate_logs() {
     echo -e "${YELLOW}━━━ Rotating Logs ━━━${NC}"
-    logrotate -f /etc/logrotate.conf
+    sudo logrotate -f /etc/logrotate.conf
     log "Logs rotated successfully"
 }
 
@@ -57,7 +58,7 @@ clean_logs() {
     find "$LOG_DIR" -name "*.log" -type f -mtime +$DAYS_TO_KEEP -delete
     find "$LOG_DIR" -name "*.gz" -type f -mtime +$DAYS_TO_KEEP -delete
 
-    journalctl --vacuum-time=${DAYS_TO_KEEP}d
+    sudo journalctl --vacuum-time=${DAYS_TO_KEEP}d
 
     local after=$(df -h "$LOG_DIR" | tail -1 | awk '{print $3}')
     log "Cleaned old logs (Before: $before, After: $after)"

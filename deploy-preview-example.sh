@@ -6,7 +6,8 @@
 # This script demonstrates how to deploy a Drupal preview environment.
 # Use this as a template for GitHub Actions or manual deployments.
 #
-# Usage: sudo -u github-actions bash deploy-preview-example.sh <pr-number> [branch]
+# Usage: bash deploy-preview-example.sh <pr-number> [branch]
+# Note: Run as github-actions user (NOT as root)
 #
 # Author: Generated for Rob's Drupal preview system
 # Version: 1.0.0
@@ -27,13 +28,18 @@ DB_USER="preview"
 
 # Read stored configuration
 if [[ -f /root/.preview_domain ]]; then
-    DOMAIN=$(cat /root/.preview_domain)
+    DOMAIN=$(sudo cat /root/.preview_domain)
+elif [[ -f "$HOME/.preview_domain" ]]; then
+    DOMAIN=$(cat "$HOME/.preview_domain")
 else
     DOMAIN="example.com"
 fi
 
-if [[ -f /root/.preview_mysql_password ]]; then
-    DB_PASSWORD=$(cat /root/.preview_mysql_password)
+if [[ -f "$HOME/.my.cnf" ]]; then
+    # Extract password from .my.cnf
+    DB_PASSWORD=$(grep "^password=" "$HOME/.my.cnf" | cut -d'=' -f2)
+elif [[ -f /root/.preview_mysql_password ]]; then
+    DB_PASSWORD=$(sudo cat /root/.preview_mysql_password)
 else
     echo "Error: MySQL preview password not found"
     exit 1
@@ -142,15 +148,11 @@ step_4_create_database() {
 
     log "Creating database: $DB_NAME"
 
-    # Drop database if exists
-    mysql -u root -e "DROP DATABASE IF EXISTS \`$DB_NAME\`;" 2>/dev/null || true
+    # Drop database if exists (using preview user's credentials from .my.cnf)
+    mysql -e "DROP DATABASE IF EXISTS \`$DB_NAME\`;" 2>/dev/null || true
 
     # Create database
-    mysql -u root -e "CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-
-    # Grant permissions
-    mysql -u root -e "GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'localhost';"
-    mysql -u root -e "FLUSH PRIVILEGES;"
+    mysql -e "CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
     log "Database created successfully"
 }
@@ -325,7 +327,9 @@ step_8_setup_ssl() {
         log "Requesting SSL certificate for: $PREVIEW_DOMAIN"
 
         if [[ -f /root/.certbot_email ]]; then
-            EMAIL=$(cat /root/.certbot_email)
+            EMAIL=$(sudo cat /root/.certbot_email)
+        elif [[ -f "$HOME/.certbot_email" ]]; then
+            EMAIL=$(cat "$HOME/.certbot_email")
         else
             EMAIL="admin@${DOMAIN}"
         fi

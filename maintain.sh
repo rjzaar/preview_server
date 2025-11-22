@@ -66,7 +66,8 @@ log_section() {
 }
 
 check_root() {
-    if [[ $EUID -ne 0 ]]; then
+    # Allow both root and github-actions user
+    if [[ $EUID -ne 0 ]] && [[ "$USER" != "github-actions" ]]; then
         log_error "This script must be run as root (use sudo)"
         exit 1
     fi
@@ -80,7 +81,7 @@ update_system() {
     log_section "System Package Updates"
 
     log "Updating package lists..."
-    apt update
+    sudo apt update
 
     log "Checking for available upgrades..."
     local upgrade_count=$(apt list --upgradable 2>/dev/null | grep -c "upgradable" || echo "0")
@@ -94,7 +95,7 @@ update_system() {
 
     # Show upgradable packages
     log "Packages to be upgraded:"
-    apt list --upgradable 2>/dev/null | grep "upgradable" | head -20
+    sudo apt list --upgradable 2>/dev/null | grep "upgradable" | head -20
 
     read -p "Proceed with upgrade? (y/n): " -n 1 -r
     echo
@@ -103,10 +104,10 @@ update_system() {
         DEBIAN_FRONTEND=noninteractive apt upgrade -y
 
         log "Removing unnecessary packages..."
-        apt autoremove -y
+        sudo apt autoremove -y
 
         log "Cleaning package cache..."
-        apt clean
+        sudo apt clean
 
         # Check if reboot required
         if [[ -f /var/run/reboot-required ]]; then
@@ -144,16 +145,16 @@ renew_ssl_certificates() {
     fi
 
     log "Checking SSL certificates for renewal..."
-    certbot renew --dry-run
+    sudo certbot renew --dry-run
 
     log "Renewing SSL certificates..."
-    certbot renew --quiet --post-hook "systemctl reload nginx"
+    sudo certbot renew --quiet --post-hook "systemctl reload nginx"
 
     log "Certificate renewal complete"
 
     # Show certificate status
     log_info "Current certificates:"
-    certbot certificates 2>/dev/null | grep -E "Certificate Name:|Expiry Date:" || true
+    sudo certbot certificates 2>/dev/null | grep -E "Certificate Name:|Expiry Date:" || true
 }
 
 ################################################################################
@@ -204,10 +205,10 @@ optimize_php() {
     log_section "PHP Optimization"
 
     log "Restarting PHP-FPM to clear OPcache..."
-    systemctl restart php${PHP_VERSION}-fpm
+    sudo systemctl restart php${PHP_VERSION}-fpm
 
     log "Checking PHP-FPM status..."
-    systemctl status php${PHP_VERSION}-fpm --no-pager | head -10
+    sudo systemctl status php${PHP_VERSION}-fpm --no-pager | head -10
 
     log "PHP optimization complete"
 }
@@ -222,7 +223,7 @@ optimize_nginx() {
     fi
 
     log "Reloading Nginx..."
-    systemctl reload nginx
+    sudo systemctl reload nginx
 
     log "Nginx optimization complete"
 }
@@ -278,7 +279,7 @@ cleanup_old_previews() {
             fi
         done
 
-        systemctl reload nginx 2>/dev/null || true
+        sudo systemctl reload nginx 2>/dev/null || true
         log "Old preview cleanup complete"
     else
         log "Cleanup cancelled"
@@ -309,7 +310,7 @@ cleanup_logs() {
 
     # System logs
     log "Cleaning journal logs..."
-    journalctl --vacuum-time=30d 2>/dev/null || true
+    sudo journalctl --vacuum-time=30d 2>/dev/null || true
 
     # PHP-FPM logs
     if [[ -d "/var/log/php${PHP_VERSION}-fpm" ]]; then
@@ -350,8 +351,8 @@ cleanup_package_cache() {
     log_section "Package Cache Cleanup"
 
     log "Cleaning APT cache..."
-    apt clean
-    apt autoclean
+    sudo apt clean
+    sudo apt autoclean
 
     log "Removing old kernels..."
     local current_kernel=$(uname -r)
@@ -366,7 +367,7 @@ cleanup_package_cache() {
         read -p "Remove old kernels? (y/n): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            apt purge -y $old_kernels
+            sudo apt purge -y $old_kernels
             log "Old kernels removed"
         fi
     else
