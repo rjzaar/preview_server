@@ -71,7 +71,7 @@ check_root() {
 backup_databases() {
     local backup_temp="$1"
 
-    log "Backing up MySQL databases..."
+    log "Backing up MariaDB databases..."
 
     mkdir -p "$backup_temp/databases"
 
@@ -105,10 +105,10 @@ backup_configurations() {
         tar -czf "$backup_temp/config/php.tar.gz" -C /etc php 2>/dev/null || true
     fi
 
-    # MySQL configurations
-    if [[ -d /etc/mysql ]]; then
-        log_info "  Backing up MySQL config"
-        tar -czf "$backup_temp/config/mysql.tar.gz" -C /etc mysql 2>/dev/null || true
+    # MariaDB configurations
+    if [[ -d /etc/mariadb ]]; then
+        log_info "  Backing up MariaDB config"
+        tar -czf "$backup_temp/config/mariadb.tar.gz" -C /etc mariadb 2>/dev/null || true
     fi
 
     # UFW rules
@@ -134,8 +134,8 @@ backup_configurations() {
     # Stored credentials and config files
     log_info "  Backing up credentials"
     mkdir -p "$backup_temp/config/credentials"
-    cp /root/.preview_mysql_password "$backup_temp/config/credentials/" 2>/dev/null || true
-    cp /root/.mysql_root_password "$backup_temp/config/credentials/" 2>/dev/null || true
+    cp /root/.preview_mariadb_password "$backup_temp/config/credentials/" 2>/dev/null || true
+    cp /root/.mariadb_root_password "$backup_temp/config/credentials/" 2>/dev/null || true
     cp /root/.preview_domain "$backup_temp/config/credentials/" 2>/dev/null || true
     cp /root/.certbot_email "$backup_temp/config/credentials/" 2>/dev/null || true
     cp /root/.my.cnf "$backup_temp/config/credentials/" 2>/dev/null || true
@@ -213,13 +213,13 @@ $(mysql -u root -e "SHOW DATABASES LIKE 'preview_%';" -s -N | wc -l) preview dat
 Services Status:
 ---------------
 Nginx: $(systemctl is-active nginx 2>/dev/null || echo "inactive")
-MySQL: $(systemctl is-active mysql 2>/dev/null || echo "inactive")
+MariaDB: $(systemctl is-active mariadb 2>/dev/null || echo "inactive")
 PHP-FPM: $(systemctl is-active php8.3-fpm 2>/dev/null || echo "inactive")
 
 Software Versions:
 -----------------
 Nginx: $(nginx -v 2>&1 | cut -d'/' -f2)
-MySQL: $(mysql --version | awk '{print $5}' | sed 's/,//')
+MariaDB: $(mysql --version | awk '{print $5}' | sed 's/,//')
 PHP: $(php -v | head -n1 | awk '{print $2}')
 Composer: $(composer --version --no-ansi 2>/dev/null | awk '{print $3}')
 
@@ -344,10 +344,10 @@ restore_backup() {
             sudo systemctl restart php8.3-fpm
         fi
 
-        # MySQL
-        if [[ -f "$restore_temp/config/mysql.tar.gz" ]]; then
-            log_info "  Restoring MySQL config (requires manual restart)"
-            tar -xzf "$restore_temp/config/mysql.tar.gz" -C /etc/
+        # MariaDB
+        if [[ -f "$restore_temp/config/mariadb.tar.gz" ]]; then
+            log_info "  Restoring MariaDB config (requires manual restart)"
+            tar -xzf "$restore_temp/config/mariadb.tar.gz" -C /etc/
         fi
 
         # Credentials
@@ -396,7 +396,7 @@ restore_backup() {
     log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo
     log_info "Please verify all services are working correctly"
-    log_info "You may need to restart MySQL: systemctl restart mysql"
+    log_info "You may need to restart MariaDB: systemctl restart mariadb"
     echo
 }
 

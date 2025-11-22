@@ -3,7 +3,7 @@
 ################################################################################
 # Performance Tuning Script
 #
-# Optimizes PHP, MySQL, and Nginx for better performance
+# Optimizes PHP, MariaDB, and Nginx for better performance
 #
 # Usage: sudo bash tune-performance.sh [--apply]
 #
@@ -68,8 +68,8 @@ tune_php() {
     fi
 }
 
-tune_mysql() {
-    echo -e "${YELLOW}━━━ MySQL Performance Tuning ━━━${NC}"
+tune_mariadb() {
+    echo -e "${YELLOW}━━━ MariaDB Performance Tuning ━━━${NC}"
 
     local total_mem=$(free -m | grep Mem | awk '{print $2}')
     local innodb_buffer=$((total_mem / 2))
@@ -77,8 +77,8 @@ tune_mysql() {
     log_info "Recommended innodb_buffer_pool_size: ${innodb_buffer}MB"
 
     if [[ "$APPLY_CHANGES" == "true" ]]; then
-        cat > /etc/mysql/mysql.conf.d/99-performance.cnf <<EOF
-[mysqld]
+        cat > /etc/mariadb/mariadb.conf.d/99-performance.cnf <<EOF
+[mariadbd]
 innodb_buffer_pool_size = ${innodb_buffer}M
 innodb_log_file_size = 256M
 max_connections = 200
@@ -86,8 +86,8 @@ query_cache_size = 0
 query_cache_type = 0
 EOF
 
-        log "MySQL performance settings updated (restart required)"
-        log_warn "Run: systemctl restart mysql"
+        log "MariaDB performance settings updated (restart required)"
+        log_warn "Run: systemctl restart mariadb"
     else
         log_warn "Run with --apply to apply changes"
     fi
@@ -121,7 +121,7 @@ show_current_config() {
     echo -e "\n${BLUE}PHP-FPM:${NC}"
     grep -E "^pm\." "/etc/php/${PHP_VERSION}/fpm/pool.d/www.conf" 2>/dev/null || echo "Not found"
 
-    echo -e "\n${BLUE}MySQL:${NC}"
+    echo -e "\n${BLUE}MariaDB:${NC}"
     mysql -u root -e "SHOW VARIABLES LIKE 'innodb_buffer_pool_size';" 2>/dev/null || echo "Not accessible"
 
     echo -e "\n${BLUE}Nginx:${NC}"
@@ -143,7 +143,7 @@ main() {
     analyze_system
     show_current_config
     tune_php
-    tune_mysql
+    tune_mariadb
     tune_nginx
 
     echo

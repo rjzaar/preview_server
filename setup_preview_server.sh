@@ -87,8 +87,8 @@ is_checkpoint_passed() {
         "start"
         "system_updated"
         "packages_installed"
-        "mysql_secured"
-        "mysql_user_created"
+        "mariadb_secured"
+        "mariadb_user_created"
         "preview_user_created"
         "directories_created"
         "nginx_configured"
@@ -179,12 +179,12 @@ validate_command() {
 # Interactive Input Functions
 ################################################################################
 
-get_mysql_password() {
-    if [[ -f "/root/.preview_mysql_password" ]]; then
-        cat "/root/.preview_mysql_password"
+get_mariadb_password() {
+    if [[ -f "/root/.preview_mariadb_password" ]]; then
+        cat "/root/.preview_mariadb_password"
     else
         while true; do
-            read -sp "Enter MySQL password for preview user: " password1
+            read -sp "Enter MariaDB password for preview user: " password1
             echo
             read -sp "Confirm password: " password2
             echo
@@ -194,8 +194,8 @@ get_mysql_password() {
                     log_warning "Password should be at least 8 characters"
                     continue
                 fi
-                echo "$password1" > /root/.preview_mysql_password
-                chmod 600 /root/.preview_mysql_password
+                echo "$password1" > /root/.preview_mariadb_password
+                chmod 600 /root/.preview_mariadb_password
                 echo "$password1"
                 break
             else
@@ -272,8 +272,8 @@ install_packages() {
     log "Installing Nginx..."
     apt install -y nginx 2>&1 | tee -a "$LOG_FILE"
     
-    log "Installing MySQL Server..."
-    apt install -y mysql-server 2>&1 | tee -a "$LOG_FILE"
+    log "Installing MariaDB Server..."
+    apt install -y mariadb-server mariadb-client 2>&1 | tee -a "$LOG_FILE"
     
     log "Installing PHP $PHP_VERSION and extensions..."
     apt install -y \
@@ -314,7 +314,7 @@ install_packages() {
     
     # Verify installations
     validate_command nginx
-    validate_command mysql
+    validate_command mariadb
     validate_command php
     validate_command composer
     validate_command certbot
@@ -323,26 +323,26 @@ install_packages() {
     log "Package installation complete"
 }
 
-secure_mysql() {
-    if is_checkpoint_passed "mysql_secured"; then
-        log_info "MySQL already secured, skipping..."
+secure_mariadb() {
+    if is_checkpoint_passed "mariadb_secured"; then
+        log_info "MariaDB already secured, skipping..."
         return 0
     fi
     
-    log_step "Securing MySQL Installation"
+    log_step "Securing MariaDB Installation"
     
-    # Start MySQL if not running
-    systemctl start mysql
-    systemctl enable mysql
+    # Start MariaDB if not running
+    systemctl start mariadb
+    systemctl enable mariadb
     
-    log "Setting MySQL root password and securing installation..."
+    log "Setting MariaDB root password and securing installation..."
     
     # Get or generate root password
     MYSQL_ROOT_PASSWORD=$(openssl rand -base64 32)
-    echo "$MYSQL_ROOT_PASSWORD" > /root/.mysql_root_password
-    chmod 600 /root/.mysql_root_password
+    echo "$MYSQL_ROOT_PASSWORD" > /root/.mariadb_root_password
+    chmod 600 /root/.mariadb_root_password
     
-    # Secure MySQL
+    # Secure MariaDB
     mysql -u root <<EOF 2>&1 | tee -a "$LOG_FILE"
 ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${MYSQL_ROOT_PASSWORD}';
 DELETE FROM mysql.user WHERE User='';
@@ -360,19 +360,19 @@ password=${MYSQL_ROOT_PASSWORD}
 EOF
     chmod 600 /root/.my.cnf
     
-    save_checkpoint "mysql_secured"
-    log "MySQL secured successfully"
+    save_checkpoint "mariadb_secured"
+    log "MariaDB secured successfully"
 }
 
-create_mysql_preview_user() {
-    if is_checkpoint_passed "mysql_user_created"; then
-        log_info "MySQL preview user already created, skipping..."
+create_mariadb_preview_user() {
+    if is_checkpoint_passed "mariadb_user_created"; then
+        log_info "MariaDB preview user already created, skipping..."
         return 0
     fi
     
-    log_step "Creating MySQL Preview User"
+    log_step "Creating MariaDB Preview User"
     
-    MYSQL_PREVIEW_PASSWORD=$(get_mysql_password)
+    MYSQL_PREVIEW_PASSWORD=$(get_mariadb_password)
     
     log "Creating preview database user with database creation permissions..."
     mysql -u root <<EOF 2>&1 | tee -a "$LOG_FILE"
@@ -385,13 +385,13 @@ EOF
     
     # Test the connection
     if mysql -u "$MYSQL_PREVIEW_USER" -p"$MYSQL_PREVIEW_PASSWORD" -e "SELECT 1;" &>/dev/null; then
-        log "MySQL preview user created and tested successfully"
+        log "MariaDB preview user created and tested successfully"
     else
-        log_error "Failed to create or test MySQL preview user"
+        log_error "Failed to create or test MariaDB preview user"
         exit 1
     fi
 
-    # Create MySQL config for preview user (for passwordless access)
+    # Create MariaDB config for preview user (for passwordless access)
     cat > "/home/$PREVIEW_USER/.my.cnf" <<EOF
 [client]
 user=${MYSQL_PREVIEW_USER}
@@ -399,9 +399,9 @@ password=${MYSQL_PREVIEW_PASSWORD}
 EOF
     chown "$PREVIEW_USER:$PREVIEW_USER" "/home/$PREVIEW_USER/.my.cnf"
     chmod 600 "/home/$PREVIEW_USER/.my.cnf"
-    log "MySQL config created for $PREVIEW_USER"
+    log "MariaDB config created for $PREVIEW_USER"
 
-    save_checkpoint "mysql_user_created"
+    save_checkpoint "mariadb_user_created"
 }
 
 create_preview_user() {
@@ -457,14 +457,14 @@ $PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl status php*-fpm
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl is-active php*-fpm
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl is-enabled php*-fpm
 
-# MySQL management
-$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl reload mysql
-$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart mysql
-$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl start mysql
-$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl stop mysql
-$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl status mysql
-$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl is-active mysql
-$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl is-enabled mysql
+# MariaDB management
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl reload mariadb
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart mariadb
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl start mariadb
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl stop mariadb
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl status mariadb
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl is-active mariadb
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl is-enabled mariadb
 
 # Other service management (fail2ban, rsyslog, ufw, etc.)
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/systemctl * fail2ban
@@ -525,7 +525,7 @@ $PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/local/bin/preview-*
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/cat /etc/ssh/sshd_config*
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/cat /etc/nginx/*
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/cat /etc/php/*/*
-$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/cat /etc/mysql/*
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/cat /etc/mariadb/*
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/cat /root/.preview_*
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/cat /root/.certbot_email
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/cat /var/log/*
@@ -535,8 +535,8 @@ $PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/dpkg *
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/sbin/sshd -t
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/sed -i * /etc/php/*/*
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/sed -i * /etc/nginx/*
-$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/sed -i * /etc/mysql/*
-$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/mysql/mysql.conf.d/*
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /bin/sed -i * /etc/mariadb/*
+$PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/mariadb/mariadb.conf.d/*
 $PREVIEW_USER ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/ssh/sshd_config.d/*
 
 # Find and file operations for cleanup
@@ -912,7 +912,7 @@ install_helper_scripts() {
     
     log_step "Installing Helper Scripts"
     
-    MYSQL_PREVIEW_PASSWORD=$(cat /root/.preview_mysql_password)
+    MYSQL_PREVIEW_PASSWORD=$(cat /root/.preview_mariadb_password)
     DOMAIN=$(get_domain)
     
     # Create preview info script
@@ -1022,7 +1022,7 @@ print_summary() {
     log_step "Installation Complete!"
     
     DOMAIN=$(get_domain)
-    MYSQL_PREVIEW_PASSWORD=$(cat /root/.preview_mysql_password)
+    MYSQL_PREVIEW_PASSWORD=$(cat /root/.preview_mariadb_password)
     
     cat <<EOF | tee -a "$LOG_FILE"
 
@@ -1051,11 +1051,11 @@ ${BLUE}Next Steps:${NC}
 3. Add these secrets to your GitHub repository:
    ${YELLOW}PREVIEW_SSH_KEY${NC} - Your private SSH key
    ${YELLOW}PREVIEW_HOST${NC} - $PREVIEW_USER@$(hostname -I | awk '{print $1}')
-   ${YELLOW}PREVIEW_DB_PASSWORD${NC} - (stored in /root/.preview_mysql_password)
+   ${YELLOW}PREVIEW_DB_PASSWORD${NC} - (stored in /root/.preview_mariadb_password)
 
-4. MySQL Preview User Password:
-   ${YELLOW}$(cat /root/.preview_mysql_password)${NC}
-   (Also stored in: /root/.preview_mysql_password)
+4. MariaDB Preview User Password:
+   ${YELLOW}$(cat /root/.preview_mariadb_password)${NC}
+   (Also stored in: /root/.preview_mariadb_password)
 
 ${BLUE}Useful Commands:${NC}
   • preview-info                    - Show preview environment info
@@ -1065,8 +1065,8 @@ ${BLUE}Useful Commands:${NC}
 ${BLUE}Important Files:${NC}
   • Log: $LOG_FILE
   • Checkpoint: $CHECKPOINT_FILE
-  • MySQL Root Password: /root/.mysql_root_password
-  • MySQL Preview Password: /root/.preview_mysql_password
+  • MariaDB Root Password: /root/.mariadb_root_password
+  • MariaDB Preview Password: /root/.preview_mariadb_password
   • Nginx Template: $NGINX_TEMPLATE_DIR/preview-template
 
 ${GREEN}Your server is ready to receive preview deployments!${NC}
@@ -1109,8 +1109,8 @@ main() {
     # Run installation steps
     update_system
     install_packages
-    secure_mysql
-    create_mysql_preview_user
+    secure_mariadb
+    create_mariadb_preview_user
     create_preview_user
     create_directories
     configure_nginx

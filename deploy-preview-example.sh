@@ -38,10 +38,10 @@ fi
 if [[ -f "$HOME/.my.cnf" ]]; then
     # Extract password from .my.cnf
     DB_PASSWORD=$(grep "^password=" "$HOME/.my.cnf" | cut -d'=' -f2)
-elif [[ -f /root/.preview_mysql_password ]]; then
-    DB_PASSWORD=$(sudo cat /root/.preview_mysql_password)
+elif [[ -f /root/.preview_mariadb_password ]]; then
+    DB_PASSWORD=$(sudo cat /root/.preview_mariadb_password)
 else
-    echo "Error: MySQL preview password not found"
+    echo "Error: MariaDB preview password not found"
     exit 1
 fi
 

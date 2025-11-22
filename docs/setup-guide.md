@@ -49,10 +49,10 @@ sudo bash setup_preview_server.sh
 
 The script will prompt you for:
 
-1. **MySQL Preview User Password**
+1. **MariaDB Preview User Password**
    - Choose a strong password (at least 16 characters)
    - Save this password - you'll need it for GitHub Secrets
-   - It's stored in `/root/.preview_mysql_password`
+   - It's stored in `/root/.preview_mariadb_password`
 
 2. **Base Domain**
    - Example: `example.com`
@@ -168,7 +168,7 @@ In your GitHub repository, add these secrets (Settings → Secrets and variables
 3. **PREVIEW_DB_PASSWORD**
    ```bash
    # Get password from server:
-   ssh root@YOUR_SERVER_IP "cat /root/.preview_mysql_password"
+   ssh root@YOUR_SERVER_IP "cat /root/.preview_mariadb_password"
    ```
 
 4. **PREVIEW_DOMAIN** (optional)
@@ -224,7 +224,7 @@ sudo systemd-resolve --flush-caches
 
 ```bash
 # Check service status
-sudo systemctl status nginx mysql php8.3-fpm
+sudo systemctl status nginx mariadb php8.3-fpm
 
 # View detailed logs
 sudo journalctl -xe

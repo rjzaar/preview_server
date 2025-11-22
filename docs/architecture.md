@@ -34,7 +34,7 @@ System design and component overview for the preview server infrastructure.
     └───────────┼───────────┘
                 │
         ┌───────▼───────┐
-        │     MySQL     │
+        │     MariaDB     │
         │   (preview_*  │
         │   databases)  │
         └───────────────┘
@@ -78,13 +78,13 @@ https://preview-pr-{NUMBER}.{DOMAIN}
 - Memory limit: 256MB
 - Max execution time: 300s
 
-### Database (MySQL)
+### Database (MariaDB)
 
 **Role:** Data persistence
 
 **Configuration:**
-- Location: `/etc/mysql/`
-- Data directory: `/var/lib/mysql/`
+- Location: `/etc/mariadb/`
+- Data directory: `/var/lib/mariadb/`
 
 **Database naming:**
 ```
@@ -150,7 +150,7 @@ preview_pr_{NUMBER}
 2. SSH connection to server
 3. Clone repository to /var/www/previews/pr-{N}
 4. Composer install
-5. Create MySQL database
+5. Create MariaDB database
 6. Configure Drupal
 7. Install Drupal
 8. Create Nginx virtual host
@@ -170,7 +170,7 @@ preview_pr_{NUMBER}
    - Route to preview directory
 4. PHP-FPM: Execute PHP
 5. Drupal: Process request
-6. MySQL: Query database
+6. MariaDB: Query database
 7. Response: HTML/JSON/etc.
 ```
 
@@ -187,7 +187,7 @@ preview_pr_{NUMBER}
 
 ### Layer 3: Application
 - Preview user with limited sudo
-- Separate MySQL user per environment
+- Separate MariaDB user per environment
 - File permission isolation
 
 ### Layer 4: Web Server
@@ -208,7 +208,7 @@ preview_pr_{NUMBER}
 
 ### Memory
 - PHP memory limit: 256MB per request
-- MySQL buffer pool: 50% of RAM
+- MariaDB buffer pool: 50% of RAM
 - File cache: Automatic
 
 ### Disk
@@ -231,7 +231,7 @@ Increase server resources:
 ### Horizontal Scaling
 Multiple preview servers:
 - Load balancer in front
-- Shared MySQL (RDS)
+- Shared MariaDB (RDS)
 - Shared file storage (NFS/S3)
 - Redis for cache
 
@@ -267,7 +267,7 @@ Multiple preview servers:
 - Load average
 
 ### Application Level
-- Service status (Nginx, MySQL, PHP-FPM)
+- Service status (Nginx, MariaDB, PHP-FPM)
 - Preview count
 - Database count
 - SSL certificate expiration

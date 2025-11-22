@@ -56,7 +56,7 @@ LOG="/var/log/monitoring/system-$(date +%Y%m%d).log"
     echo "Disk: $(df -h / | tail -1 | awk '{print "Used: "$3" / "$2" ("$5")"}')"
     echo "Services:"
     sudo systemctl is-active nginx && echo "  nginx: OK" || echo "  nginx: FAIL"
-    sudo systemctl is-active mysql && echo "  mysql: OK" || echo "  mysql: FAIL"
+    sudo systemctl is-active mariadb && echo "  mariadb: OK" || echo "  mariadb: FAIL"
     sudo systemctl is-active php8.3-fpm && echo "  php-fpm: OK" || echo "  php-fpm: FAIL"
     echo
 } >> "$LOG"

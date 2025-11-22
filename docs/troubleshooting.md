@@ -41,7 +41,7 @@ sudo systemctl reload nginx
 ```bash
 # Test database connection
 mysql -u preview -p
-# Enter password from /root/.preview_mysql_password
+# Enter password from /root/.preview_mariadb_password
 
 # Check database exists
 mysql -u root -e "SHOW DATABASES LIKE 'preview_%';"
@@ -132,7 +132,7 @@ sudo bash tune-performance.sh --apply
 
 # Restart services
 sudo systemctl restart php8.3-fpm
-sudo systemctl restart mysql
+sudo systemctl restart mariadb
 ```
 
 ### 7. Composer Install Fails
@@ -199,18 +199,18 @@ ssh -v -i ~/.ssh/preview_deploy github-actions@SERVER_IP
 
 ### 10. Services Won't Start
 
-**Symptoms:** nginx/mysql/php-fpm won't start
+**Symptoms:** nginx/mariadb/php-fpm won't start
 
 **Solutions:**
 ```bash
 # Check service status
 sudo systemctl status nginx
-sudo systemctl status mysql
+sudo systemctl status mariadb
 sudo systemctl status php8.3-fpm
 
 # View detailed errors
 sudo journalctl -xe -u nginx
-sudo journalctl -xe -u mysql
+sudo journalctl -xe -u mariadb
 sudo journalctl -xe -u php8.3-fpm
 
 # Check ports aren't in use
@@ -218,7 +218,7 @@ sudo netstat -tlnp | grep :80
 sudo netstat -tlnp | grep :3306
 
 # Restart services
-sudo systemctl restart nginx mysql php8.3-fpm
+sudo systemctl restart nginx mariadb php8.3-fpm
 ```
 
 ## Advanced Troubleshooting

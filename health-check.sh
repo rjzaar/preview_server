@@ -97,7 +97,7 @@ declare -A CHECKS
 
 check_services() {
     local nginx_status="unknown"
-    local mysql_status="unknown"
+    local mariadb_status="unknown"
     local php_status="unknown"
 
     # Check Nginx
@@ -109,13 +109,13 @@ check_services() {
         log_error "Nginx is not running"
     fi
 
-    # Check MySQL
-    if systemctl is-active --quiet mysql; then
-        mysql_status="running"
-        log "MySQL is running"
+    # Check MariaDB
+    if systemctl is-active --quiet mariadb; then
+        mariadb_status="running"
+        log "MariaDB is running"
     else
-        mysql_status="stopped"
-        log_error "MySQL is not running"
+        mariadb_status="stopped"
+        log_error "MariaDB is not running"
     fi
 
     # Check PHP-FPM
@@ -128,7 +128,7 @@ check_services() {
     fi
 
     CHECKS["nginx"]="$nginx_status"
-    CHECKS["mysql"]="$mysql_status"
+    CHECKS["mariadb"]="$mariadb_status"
     CHECKS["php_fpm"]="$php_status"
 }
 
@@ -203,15 +203,15 @@ check_nginx_config() {
 
 check_database_connection() {
     if mysql -u root -e "SELECT 1;" &>/dev/null 2>&1; then
-        log "MySQL connection successful"
-        CHECKS["mysql_connection"]="ok"
+        log "MariaDB connection successful"
+        CHECKS["mariadb_connection"]="ok"
 
         # Count preview databases
         local db_count=$(mysql -u root -e "SHOW DATABASES LIKE 'preview_%';" -s -N 2>/dev/null | wc -l)
         CHECKS["preview_databases"]="$db_count"
     else
-        log_error "Cannot connect to MySQL"
-        CHECKS["mysql_connection"]="failed"
+        log_error "Cannot connect to MariaDB"
+        CHECKS["mariadb_connection"]="failed"
         CHECKS["preview_databases"]="0"
     fi
 }
@@ -317,7 +317,7 @@ output_json() {
   "checks": {
     "services": {
       "nginx": "${CHECKS[nginx]:-unknown}",
-      "mysql": "${CHECKS[mysql]:-unknown}",
+      "mariadb": "${CHECKS[mariadb]:-unknown}",
       "php_fpm": "${CHECKS[php_fpm]:-unknown}"
     },
     "resources": {
@@ -342,7 +342,7 @@ output_json() {
     },
     "configuration": {
       "nginx_config": "${CHECKS[nginx_config]:-unknown}",
-      "mysql_connection": "${CHECKS[mysql_connection]:-unknown}"
+      "mariadb_connection": "${CHECKS[mariadb_connection]:-unknown}"
     },
     "previews": {
       "active_count": ${CHECKS[active_previews]:-0},

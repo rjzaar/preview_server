@@ -292,11 +292,11 @@ check_user_security() {
 check_service_security() {
     log_section "Service Security"
 
-    # Check MySQL remote access
+    # Check MariaDB remote access
     if netstat -an | grep -q ":3306.*0.0.0.0"; then
-        log_fail "MySQL is listening on all interfaces (security risk)"
+        log_fail "MariaDB is listening on all interfaces (security risk)"
     else
-        log "MySQL is not exposed to external networks"
+        log "MariaDB is not exposed to external networks"
     fi
 
     # Check for unnecessary services

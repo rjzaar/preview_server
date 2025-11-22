@@ -401,7 +401,7 @@ show_disk_usage() {
 show_service_status() {
     log_section "Service Status"
 
-    local services=("nginx" "mysql" "php${PHP_VERSION}-fpm")
+    local services=("nginx" "mariadb" "php${PHP_VERSION}-fpm")
 
     for service in "${services[@]}"; do
         if systemctl is-active --quiet "$service"; then
@@ -438,7 +438,7 @@ Databases:
 
 Services:
   Nginx: $(systemctl is-active nginx 2>/dev/null || echo "inactive")
-  MySQL: $(systemctl is-active mysql 2>/dev/null || echo "inactive")
+  MariaDB: $(systemctl is-active mariadb 2>/dev/null || echo "inactive")
   PHP-FPM: $(systemctl is-active php${PHP_VERSION}-fpm 2>/dev/null || echo "inactive")
 
 EOF

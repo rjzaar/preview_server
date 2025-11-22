@@ -147,8 +147,8 @@ check_required_packages() {
     fi
     
     # Database
-    run_check "MySQL installed" "command -v mysql"
-    if command -v mysql &>/dev/null; then
+    run_check "MariaDB installed" "command -v mariadb"
+    if command -v mariadb &>/dev/null; then
         check_info "  Version: $(mysql --version | awk '{print $5}' | sed 's/,//')"
     fi
     
@@ -160,7 +160,7 @@ check_required_packages() {
         # PHP Extensions
         report ""
         report "  PHP Extensions:"
-        local required_extensions=("mysqli" "gd" "xml" "mbstring" "curl" "zip" "intl" "opcache")
+        local required_extensions=("mariadbi" "gd" "xml" "mbstring" "curl" "zip" "intl" "opcache")
         for ext in "${required_extensions[@]}"; do
             if php -m | grep -q "^$ext$"; then
                 check_pass "  $ext"
@@ -216,17 +216,17 @@ check_services() {
         check_warn "Nginx is not enabled for startup"
     fi
     
-    # MySQL
-    if systemctl is-active --quiet mysql; then
-        check_pass "MySQL is running"
+    # MariaDB
+    if systemctl is-active --quiet mariadb; then
+        check_pass "MariaDB is running"
     else
-        check_fail "MySQL is not running"
+        check_fail "MariaDB is not running"
     fi
     
-    if systemctl is-enabled --quiet mysql; then
-        check_pass "MySQL is enabled (starts on boot)"
+    if systemctl is-enabled --quiet mariadb; then
+        check_pass "MariaDB is enabled (starts on boot)"
     else
-        check_warn "MySQL is not enabled for startup"
+        check_warn "MariaDB is not enabled for startup"
     fi
     
     # PHP-FPM
@@ -453,20 +453,20 @@ check_php_config() {
     fi
 }
 
-check_mysql_config() {
-    report_section "MySQL Configuration and Database Setup"
+check_mariadb_config() {
+    report_section "MariaDB Configuration and Database Setup"
     
-    # Check if MySQL is accessible
+    # Check if MariaDB is accessible
     if mysql -u root -e "SELECT 1;" &>/dev/null; then
-        check_pass "MySQL root access configured"
+        check_pass "MariaDB root access configured"
         
-        # Get MySQL version
-        local mysql_version=$(mysql -u root -e "SELECT VERSION();" -s -N)
-        check_info "  MySQL Version: $mysql_version"
+        # Get MariaDB version
+        local mariadb_version=$(mysql -u root -e "SELECT VERSION();" -s -N)
+        check_info "  MariaDB Version: $mariadb_version"
         
         # Check preview user
-        if mysql -u root -e "SELECT User FROM mysql.user WHERE User='$MYSQL_PREVIEW_USER';" -s -N | grep -q "$MYSQL_PREVIEW_USER"; then
-            check_pass "MySQL preview user exists: $MYSQL_PREVIEW_USER"
+        if mysql -u root -e "SELECT User FROM mariadb.user WHERE User='$MYSQL_PREVIEW_USER';" -s -N | grep -q "$MYSQL_PREVIEW_USER"; then
+            check_pass "MariaDB preview user exists: $MYSQL_PREVIEW_USER"
             
             # Check grants
             check_info "  Grants for $MYSQL_PREVIEW_USER:"
@@ -475,8 +475,8 @@ check_mysql_config() {
             done
             
             # Test preview user can connect
-            if [[ -f "/root/.preview_mysql_password" ]]; then
-                local preview_pass=$(sudo cat /root/.preview_mysql_password)
+            if [[ -f "/root/.preview_mariadb_password" ]]; then
+                local preview_pass=$(sudo cat /root/.preview_mariadb_password)
                 if mysql -u "$MYSQL_PREVIEW_USER" -p"$preview_pass" -e "SELECT 1;" &>/dev/null; then
                     check_pass "Preview user can authenticate"
                 else
@@ -486,7 +486,7 @@ check_mysql_config() {
                 check_warn "Preview user password file not found (cannot test authentication)"
             fi
         else
-            check_fail "MySQL preview user does not exist: $MYSQL_PREVIEW_USER"
+            check_fail "MariaDB preview user does not exist: $MYSQL_PREVIEW_USER"
         fi
         
         # List preview databases
@@ -499,10 +499,10 @@ check_mysql_config() {
         fi
         
         # Check security settings
-        if mysql -u root -e "SELECT User FROM mysql.user WHERE User='';" -s -N | grep -q "^$"; then
-            check_pass "No anonymous MySQL users"
+        if mysql -u root -e "SELECT User FROM mariadb.user WHERE User='';" -s -N | grep -q "^$"; then
+            check_pass "No anonymous MariaDB users"
         else
-            check_warn "Anonymous MySQL users exist (security risk)"
+            check_warn "Anonymous MariaDB users exist (security risk)"
         fi
         
         if mysql -u root -e "SHOW DATABASES LIKE 'test';" -s -N | grep -q "test"; then
@@ -512,8 +512,8 @@ check_mysql_config() {
         fi
         
     else
-        check_fail "Cannot access MySQL as root"
-        check_info "  Check /root/.my.cnf or /root/.mysql_root_password"
+        check_fail "Cannot access MariaDB as root"
+        check_info "  Check /root/.my.cnf or /root/.mariadb_root_password"
     fi
 }
 
@@ -705,7 +705,7 @@ check_network() {
     
     # Check listening ports
     check_info "Listening Services:"
-    ss -tlnp | grep -E "nginx|mysql|php-fpm" | awk '{print "  "$4" - "$7}' | tee -a "$REPORT_FILE"
+    ss -tlnp | grep -E "nginx|mariadb|php-fpm" | awk '{print "  "$4" - "$7}' | tee -a "$REPORT_FILE"
     
     # Check DNS
     if [[ -f /root/.preview_domain ]]; then
@@ -731,9 +731,9 @@ check_stored_credentials() {
     report_section "Stored Credentials and Configuration"
     
     local cred_files=(
-        "/root/.mysql_root_password:MySQL Root Password"
-        "/root/.preview_mysql_password:MySQL Preview User Password"
-        "/root/.my.cnf:MySQL Root Config"
+        "/root/.mariadb_root_password:MariaDB Root Password"
+        "/root/.preview_mariadb_password:MariaDB Preview User Password"
+        "/root/.my.cnf:MariaDB Root Config"
         "/root/.preview_domain:Preview Domain"
         "/root/.certbot_email:Certbot Email"
     )
@@ -791,9 +791,9 @@ run_connectivity_test() {
     fi
     
     if nc -z localhost 3306 2>/dev/null; then
-        check_pass "Port 3306 (MySQL) is open locally"
+        check_pass "Port 3306 (MariaDB) is open locally"
     else
-        check_warn "Port 3306 (MySQL) is not accessible"
+        check_warn "Port 3306 (MariaDB) is not accessible"
     fi
 }
 
@@ -916,7 +916,7 @@ EOF
     check_user_setup
     check_nginx_config
     check_php_config
-    check_mysql_config
+    check_mariadb_config
     check_ssl_setup
     check_firewall
     check_security_hardening

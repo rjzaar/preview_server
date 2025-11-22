@@ -23,7 +23,7 @@ This repository contains a complete suite of tools for managing a production-rea
 - **Health Monitoring**: Comprehensive health checks and monitoring
 - **Security Auditing**: Automated security scans and hardening
 - **Backup & Restore**: Full system backup and disaster recovery
-- **Performance Tuning**: Optimize PHP, MySQL, and Nginx
+- **Performance Tuning**: Optimize PHP, MariaDB, and Nginx
 - **Log Management**: Centralized log rotation and analysis
 - **SSL Automation**: Automatic Let's Encrypt SSL certificates
 
@@ -47,7 +47,7 @@ sudo bash setup_preview_server.sh
 ```
 
 The setup script will:
-- Install and configure Nginx, PHP 8.3, MySQL
+- Install and configure Nginx, PHP 8.3, MariaDB
 - Create preview user and directories
 - Configure SSL automation
 - Set up firewall rules
@@ -85,7 +85,7 @@ sudo bash setup_preview_server.sh
 ```
 
 **Features:**
-- Installs all required packages (Nginx, PHP, MySQL, Composer, Certbot)
+- Installs all required packages (Nginx, PHP, MariaDB, Composer, Certbot)
 - Configures services with Drupal-optimized settings
 - Creates preview user with proper permissions
 - Sets up SSL automation
@@ -96,7 +96,7 @@ sudo bash setup_preview_server.sh
 - Preview user: `github-actions`
 - Preview directory: `/var/www/previews`
 - PHP version: 8.3
-- MySQL user: `preview`
+- MariaDB user: `preview`
 
 ---
 
@@ -112,7 +112,7 @@ sudo bash check.sh
 **What it checks:**
 - System information and resources
 - Package installation status
-- Service health (Nginx, MySQL, PHP-FPM)
+- Service health (Nginx, MariaDB, PHP-FPM)
 - User and permission setup
 - Nginx and PHP configuration
 - Database connectivity
@@ -138,7 +138,7 @@ sudo bash health-check.sh --json
 ```
 
 **Checks:**
-- Service status (Nginx, MySQL, PHP-FPM)
+- Service status (Nginx, MariaDB, PHP-FPM)
 - Resource usage (disk, memory, CPU load)
 - Configuration validity
 - Database connectivity
@@ -171,7 +171,7 @@ sudo -u github-actions bash deploy-preview-example.sh 456 feature/my-feature
 1. Creates preview directory structure
 2. Clones repository and checks out branch
 3. Installs Composer dependencies
-4. Creates isolated MySQL database
+4. Creates isolated MariaDB database
 5. Configures Drupal settings
 6. Installs Drupal (or imports configuration)
 7. Creates Nginx virtual host
@@ -207,10 +207,10 @@ sudo bash backup-restore.sh schedule
 ```
 
 **What gets backed up:**
-- All MySQL databases (preview_* databases)
+- All MariaDB databases (preview_* databases)
 - Nginx configurations
 - PHP configurations
-- MySQL configurations
+- MariaDB configurations
 - SSL certificates (Let's Encrypt)
 - Firewall rules
 - Crontabs
@@ -292,7 +292,7 @@ sudo bash security-audit.sh --fix
 - Fail2ban intrusion prevention
 - File permissions
 - User account security
-- Service security (MySQL exposure, unnecessary services)
+- Service security (MariaDB exposure, unnecessary services)
 - Kernel security parameters
 - Outdated packages
 - Web server security (Nginx headers, SSL/TLS)
@@ -353,7 +353,7 @@ sudo bash tune-performance.sh --apply
 
 **Optimizations:**
 - **PHP-FPM:** Calculates optimal pm.max_children based on available memory
-- **MySQL:** Sets innodb_buffer_pool_size, connection limits
+- **MariaDB:** Sets innodb_buffer_pool_size, connection limits
 - **Nginx:** Configures worker_processes based on CPU cores
 
 **Safe to run:** Analyzes first, only applies with `--apply` flag
@@ -415,8 +415,8 @@ Detailed guides are available in the `docs/` folder:
 ### Software Installed by Setup Script
 
 - Nginx (latest stable)
-- PHP 8.3 with extensions (FPM, CLI, MySQL, GD, XML, etc.)
-- MySQL 8.0+
+- PHP 8.3 with extensions (FPM, CLI, MariaDB, GD, XML, etc.)
+- MariaDB 8.0+
 - Composer (latest)
 - Certbot for Let's Encrypt
 - UFW firewall
@@ -456,7 +456,7 @@ sudo bash setup_preview_server.sh
 ```
 
 Follow the prompts to enter:
-- MySQL preview user password
+- MariaDB preview user password
 - Base domain for previews
 - Email for Let's Encrypt notifications
 
@@ -483,7 +483,7 @@ Add these secrets to your GitHub repository:
 
 - `PREVIEW_SSH_KEY` - Your private SSH key
 - `PREVIEW_HOST` - `github-actions@your-server-ip`
-- `PREVIEW_DB_PASSWORD` - MySQL preview user password
+- `PREVIEW_DB_PASSWORD` - MariaDB preview user password
 
 ### 7. Verify Installation
 
@@ -635,7 +635,7 @@ Set up log analysis cron job:
 2. **Regular Security Audits**: Run `security-audit.sh --fix` weekly
 3. **Keep System Updated**: Run `maintain.sh --update` regularly
 4. **Enable Fail2ban**: Protect against brute force attacks
-5. **Use Strong Passwords**: For MySQL and any admin accounts
+5. **Use Strong Passwords**: For MariaDB and any admin accounts
 6. **Regular Backups**: Schedule automated backups with `backup-restore.sh schedule`
 7. **Monitor Logs**: Check for suspicious activity with `manage-logs.sh analyze`
 8. **SSL Everywhere**: All previews should use HTTPS
@@ -667,7 +667,7 @@ Set up log analysis cron job:
 
 ### Service Won't Start
 
-1. Check service status: `sudo systemctl status nginx mysql php8.3-fpm`
+1. Check service status: `sudo systemctl status nginx mariadb php8.3-fpm`
 2. View detailed logs: `sudo journalctl -xe`
 3. Run diagnostics: `sudo bash check.sh`
 4. Verify configurations: `sudo nginx -t`, `sudo php-fpm8.3 -t`
